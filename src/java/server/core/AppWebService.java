@@ -4,7 +4,6 @@
 
 package server.core;
 
-import server.general.db.conexion.DBConexion;
 import server.general.error.AppException;
 import server.general.util.Configuracion;
 import server.general.util.Sistema;
@@ -16,8 +15,6 @@ public class AppWebService {
             String DIR_CONFIG_PROPERTIES = Sistema.getPathFromClass(Init.class, "Init", "server") + "Config.properties";
 
             Configuracion.CargarConfiguracion(DIR_CONFIG_PROPERTIES);
-            
-            DBConexion.getPreparedStatement("SELECT SYSDATE FROM DUAL");
         } catch ( Exception e ) {
             AppException.getException( e );
         }

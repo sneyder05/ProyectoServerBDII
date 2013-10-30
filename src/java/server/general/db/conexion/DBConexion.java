@@ -7,6 +7,7 @@ package server.general.db.conexion;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.util.Vector;
 import server.general.error.AppException;
 import server.general.util.Configuracion;
@@ -172,6 +173,18 @@ public class DBConexion  {
         try{
             PreparedStatement ps;
             ps = getDBConexion().prepareStatement(sbStatement);            
+            return ps;
+        }
+        catch ( Exception e ) {
+            throw AppException.getException ( e );
+        }
+    }
+    
+    public static PreparedStatement getPreparedStatement( String sbStatement, int nuType, int nuConcurrency )
+    throws AppException {
+        try{
+            PreparedStatement ps;
+            ps = getDBConexion().prepareStatement(sbStatement, nuType, nuConcurrency);            
             return ps;
         }
         catch ( Exception e ) {
