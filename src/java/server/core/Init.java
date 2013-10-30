@@ -1,5 +1,7 @@
 package server.core;
 
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.annotation.PostConstruct;
 import javax.ejb.Singleton;
 import javax.ejb.Startup;
@@ -9,8 +11,12 @@ import server.general.error.AppException;
 @Singleton
 public class Init {
     @PostConstruct
-    void Init() throws AppException{
+    void Init(){
         System.out.println("PostConstruct Server");
-        AppWebService.initialize();
+        try {
+            AppWebService.initialize();
+        } catch (AppException ex) {
+            ex.printStackTrace();
+        }
     }
 }

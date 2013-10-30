@@ -18,6 +18,7 @@ public class Configuracion  {
 
     public static void CargarConfiguracion( String sbRutaArchivo )
     throws AppException {
+        System.out.println("Trying load configuration from {" + sbRutaArchivo + "}");
         try{
             Properties objProperties = new Properties();
             FileInputStream fiArchivoConfiguracion;
