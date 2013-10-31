@@ -3,15 +3,13 @@ package server.general.util;
 import java.net.URL;
 import java.sql.Timestamp;
 import java.util.Calendar;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import org.codehaus.jettison.json.JSONObject;
 import server.general.error.AppException;
 
 public class Sistema {
     public static String ServiceResponse(String sbCallback, String sbMsg, boolean blSuccess){
         if(sbCallback != null && !sbCallback.equals("")){
-            return sbCallback + "({\"success\":" + blSuccess + ", \"data\":\"" + sbMsg + "\"})";
+            return sbCallback + "({\"success\":" + blSuccess + ", \"data\":\"" + sbMsg.replaceAll("\r\n", ".") + "\"})";
         } 
         else
             return sbMsg;
