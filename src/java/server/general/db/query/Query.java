@@ -48,11 +48,27 @@ public class Query {
     public static ResultSet getTableConstraints(String sbTable) throws AppException {
         try{
             int nuIdx = 1;
-            //String sbSQL = "?SELECT CONSTRAINT_TYPE,INDEX_NAME,CONSTRAINT_NAME FROM ALL_CONSTRAINTS WHERE CONSTRAINT_NAME NOT LIKE 'SYS%' AND TABLE_NAME = ?";
-            String sbSQL = "SELECT CONSTRAINT_TYPE, INDEX_NAME, CONSTRAINT_NAME FROM ALL_CONSTRAINTS WHERE CONSTRAINT_NAME NOT LIKE 'SYS%' AND TABLE_NAME = ?";
+            String sbSQL = "SELECT * FROM ALL_CONSTRAINTS WHERE CONSTRAINT_NAME NOT LIKE 'SYS%' AND TABLE_NAME = ?";
             PreparedStatement stm = DBConexion.getPreparedStatement(sbSQL, ResultSet.TYPE_SCROLL_SENSITIVE, ResultSet.CONCUR_UPDATABLE);
 
             stm.setString(nuIdx++, sbTable);
+            
+            System.out.println("SQL::" + stm.toString());
+
+            return stm.executeQuery();
+        }
+        catch(Exception e){
+            throw AppException.getException(e);
+        }
+    }
+    
+    public static ResultSet getDetailConstraint(String sbConstraint) throws AppException {
+        try{
+            int nuIdx = 1;
+            String sbSQL = "SELECT * FROM ALL_CONS_COLUMNS WHERE CONSTRAINT_NAME = ? ORDER BY POSITION";
+            PreparedStatement stm = DBConexion.getPreparedStatement(sbSQL, ResultSet.TYPE_SCROLL_SENSITIVE, ResultSet.CONCUR_UPDATABLE);
+
+            stm.setString(nuIdx++, sbConstraint);
             
             System.out.println("SQL::" + stm.toString());
 

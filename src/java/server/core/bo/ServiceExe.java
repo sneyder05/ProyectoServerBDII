@@ -1,5 +1,6 @@
 package server.core.bo;
 
+import java.io.PrintWriter;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.util.ArrayList;
@@ -39,7 +40,7 @@ public class ServiceExe {
     public static String GenerateBackup(GenerateBackupInADT objGenerateBackupInADT, String sbCallback) throws AppException{
         try{
             ResultSet rsTables = Query.getTablesUser(Configuracion.usuarioDB);
-            ResultSet rsColumns, rsConstraints;
+            ResultSet rsColumns, rsConstraints, rsDetailConstraint, rsFKDetailConstraint;
             StringBuilder sbSQL = new StringBuilder();
             
             while(rsTables.next()){
@@ -50,7 +51,7 @@ public class ServiceExe {
                  */
                 rsColumns = Query.getTableColumns(sbTabla);
                 
-                sbSQL.append("CREATE TABLE \"").append(sbTabla).append("\" (");
+                sbSQL.append("CREATE TABLE \"").append(sbTabla).append("\" (\r\n");
                 
                 while(rsColumns.next()){
                     String sbColumnName = rsColumns.getString("COLUMN_NAME");
@@ -71,7 +72,7 @@ public class ServiceExe {
                         sbSQL.append("(").append(nuDataLength).append(")");
                     }
                     
-                    sbSQL.append(!blNullable ? " NOT NULL" : "").append(!rsColumns.isLast() ? "," : "");
+                    sbSQL.append(!blNullable ? " NOT NULL" : "").append(!rsColumns.isLast() ? "," : "").append(!rsColumns.isLast() ? "\r\n" : "");
                 }
                 
                 /*
@@ -79,22 +80,85 @@ public class ServiceExe {
                  */
                 rsConstraints = Query.getTableConstraints(sbTabla);
                 
+                if(!rsConstraints.isAfterLast() && !rsConstraints.isBeforeFirst()){
+                    sbSQL.append("\r\n");
+                }
+                
                 while(rsConstraints.next()){
-                    if(!sbSQL.toString().endsWith(",")){
-                        sbSQL.append(",");
+                    if(rsConstraints.isFirst() && !sbSQL.toString().endsWith(",")){
+                        sbSQL.append(",\r\n");
                     }
                     
                     String sbConstraintName = rsConstraints.getString("CONSTRAINT_NAME");
+                    String sbConstraingType = rsConstraints.getString("CONSTRAINT_TYPE");
+                    String sbFKConstraintName = rsConstraints.getString("R_CONSTRAINT_NAME");
+                    String sbDeleteRule = rsConstraints.getString("DELETE_RULE");
+                    String sbSearchCond = rsConstraints.getString("SEARCH_CONDITION");
                     
-                    System.out.println(">sbConstraintName:"+sbConstraintName+",sbConstraintType:"+rsConstraints.getString("CONSTRAINT_TYPE"));
+                    /*
+                     * GET DETAIL CONSTRAINT
+                     */
+                    rsDetailConstraint = Query.getDetailConstraint(sbConstraintName);
                     
-                    sbSQL.append("CONSTRAINT ").append(sbConstraintName).append(!rsColumns.isLast() ? "," : "");
+                    if(!rsDetailConstraint.isAfterLast() && !rsDetailConstraint.isBeforeFirst()){
+                        System.out.println("No data for constraint [" + sbConstraintName + "]-> Omiting...");
+                        continue;
+                    }
+                    
+                    /*
+                     * GET DETAIL FOR FK CONSTRAINT
+                     */
+                    rsFKDetailConstraint = Query.getDetailConstraint(sbFKConstraintName);
+                    
+                    if(sbConstraingType.equals("R") && !rsFKDetailConstraint.isAfterLast() && !rsFKDetailConstraint.isBeforeFirst()){
+                        System.out.println("No data for FK constraint [" + sbFKConstraintName + "]-> Omiting...");
+                        continue;
+                    }
+                    
+                    System.out.println(">sbConstraintName:"+sbConstraintName+",sbConstraintType:"+sbConstraingType+",sbDeleteRule:"+sbDeleteRule+",sbSearchCond:"+sbSearchCond);
+                    
+                    sbSQL.append("\tCONSTRAINT \"").append(sbConstraintName).append("\" ");
+                    
+                    String sbKeys = "";
+                    
+                    if(Arrays.asList("P", "U").contains(sbConstraingType)){
+                        sbKeys = (sbConstraingType.equals("P") ? "PRIMARY KEY" : "UNIQUE") + "({$KEYS})";
+                    }
+                    else if(sbConstraingType.equals("R")){
+                        sbKeys = "FOREIGN KEY ({$KEYS}) REFERENCES \"{$TABLE}\" ({$FK_KEYS})";
+                    }
+                    else if(sbConstraingType.equals("C")){
+                        sbKeys = "CHECK " + sbSearchCond;
+                    }
+                    
+                    String sbColumns = "";
+                    while(rsDetailConstraint.next()){
+                        String sbColumnName = rsDetailConstraint.getString("COLUMN_NAME");
+                        sbColumns += "\"" + sbColumnName + "\"" + (!rsDetailConstraint.isLast() ? "," : "");
+                    }
+                    
+                    String sbFKColumns = "";
+                    String sbFKTable = "";
+                    while(rsFKDetailConstraint.next()){
+                        String sbColumnName = rsFKDetailConstraint.getString("COLUMN_NAME");
+                        sbFKTable = rsFKDetailConstraint.getString("TABLE_NAME");
+                        sbFKColumns += "\"" + sbColumnName + "\"" + (!rsFKDetailConstraint.isLast() ? "," : "");
+                    }
+                    
+                    sbSQL.append(sbKeys.replaceAll("\\{\\$KEYS\\}", sbColumns).replaceAll("\\{\\$FK_KEYS\\}", sbFKColumns).replaceAll("\\{\\$TABLE\\}", sbFKTable));
+                    
+                    sbSQL.append(sbDeleteRule != null && sbDeleteRule.equals("CASCADE") ? " ON DELETE CASCADE" : "").append(!rsConstraints.isLast() ? "," : "").append("\r\n");
                 }
                 
                 sbSQL.append("\r\n);\r\n");
             }
             
-            return Sistema.ServiceResponse(sbCallback, sbSQL.toString(), true);
+            String sbURLDownload = Configuracion.pathDownloadFiles + objGenerateBackupInADT.getFileName(); 
+            PrintWriter writer = new PrintWriter(Configuracion.pathFiles + objGenerateBackupInADT.getFileName(), "UTF-8");
+            writer.println(sbSQL);
+            writer.close();
+            
+            return Sistema.ServiceResponse(sbCallback, sbURLDownload, true);
         } catch (Exception ex) {
             DBConexion.rollback();
             throw AppException.getException(ex);

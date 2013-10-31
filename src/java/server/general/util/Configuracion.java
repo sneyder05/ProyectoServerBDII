@@ -15,6 +15,8 @@ public class Configuracion  {
     public static String nombreDB;
     public static String serverDB;
     public static int puertoDB;
+    public static String pathFiles;
+    public static String pathDownloadFiles;
 
     public static void CargarConfiguracion( String sbRutaArchivo )
     throws AppException {
@@ -30,8 +32,10 @@ public class Configuracion  {
             nombreDB = objProperties.getProperty("nombreDB");
             serverDB = objProperties.getProperty("serverDB");
             puertoDB = Integer.parseInt(objProperties.getProperty("puertoDB"));
+            pathFiles = objProperties.getProperty("pathFiles");
+            pathDownloadFiles = objProperties.getProperty("pathDownloadFiles");
             
-            System.out.println("CONFIGURATION::\nusuarioDB:"+usuarioDB+"\npasswordDB:"+passwordDB+"\nnombreDB:"+nombreDB+"\nserverDB:"+serverDB+"\npuertoDB:"+puertoDB);
+            System.out.println("CONFIGURATION::\nusuarioDB:"+usuarioDB+"\npasswordDB:"+passwordDB+"\nnombreDB:"+nombreDB+"\nserverDB:"+serverDB+"\npuertoDB:"+puertoDB+"\npathFiles:"+pathFiles+"\npathDownloadFiles:"+pathDownloadFiles);
         } catch ( Exception e ) {
             throw   AppException.getException( e );
         }
