@@ -7,15 +7,23 @@ import org.codehaus.jettison.json.JSONObject;
 import server.general.error.AppException;
 
 public class Sistema {
-    public static String ServiceResponse(String sbCallback, String sbMsg, boolean blSuccess){
-        if(sbCallback != null && !sbCallback.equals("")){
-            return sbCallback + "({\"success\":" + blSuccess + ", \"data\":\"" + sbMsg.replaceAll("\r\n", ".") + "\"})";
-        } 
-        else
-            return sbMsg;
+    public static String ServiceResponse(String sbCallback, String sbMsg, boolean blSuccess) throws AppException{
+        try{
+            if(sbCallback != null && !sbCallback.equals("")){
+                JSONObject objJSONReturn = new JSONObject();
+                objJSONReturn.put("success", blSuccess);
+                objJSONReturn.put("data", sbMsg);
+                return sbCallback + "(" + objJSONReturn + ")";
+            } 
+            else
+                return sbMsg;
+        }
+        catch(Exception e){
+            throw AppException.getException(e);
+        }
     }
     
-    public static String ServiceResponse(String sbCallback, JSONObject sbMsg, boolean blSuccess){
+    public static String ServiceResponse(String sbCallback, JSONObject sbMsg, boolean blSuccess) throws AppException{
         return Sistema.ServiceResponse(sbCallback, sbMsg.toString(), blSuccess);
     }
     

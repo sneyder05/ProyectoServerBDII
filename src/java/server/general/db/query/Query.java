@@ -11,10 +11,10 @@ import server.general.error.AppException;
  * Copyright 2013
  */
 public class Query {
-    public static ResultSet getTablesUser(String sbUser) throws AppException {
+    public static ResultSet getTablesUser(String sbUser, boolean blSort) throws AppException {
         try{
             int nuIdx = 1;
-            String sbSQL = "SELECT OWNER, TABLE_NAME FROM ALL_TABLES WHERE OWNER = ?";
+            String sbSQL = "SELECT OWNER, TABLE_NAME FROM ALL_TABLES WHERE OWNER = ?" + (blSort ? " ORDER BY TABLE_NAME" : "");
             PreparedStatement stm = DBConexion.getPreparedStatement(sbSQL);
 
             stm.setString(nuIdx++, sbUser);
