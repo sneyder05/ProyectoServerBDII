@@ -89,7 +89,7 @@ public class Services {
     public String GetTableInfo(@QueryParam("data") String sbData, @QueryParam("callback") String sbCallback){
         String sbResponse = "";
         try{
-            Sistema.Log("/GenerateBackup", sbData, sbCallback);
+            Sistema.Log("/GetTableInfo", sbData, sbCallback);
             
             Gson objGson = new Gson();
             GetTableInfoInADT objGetTableInfoInADT = objGson.fromJson(sbData, GetTableInfoInADT.class);
@@ -105,7 +105,33 @@ public class Services {
             sbResponse = Sistema.ServiceResponse(sbCallback, e.getMessage(), false);
         }
         finally{
-            Sistema.LogCall("/GenerateBackup", sbData, sbResponse);
+            Sistema.LogCall("/GetTableInfo", sbData, sbResponse);
+            return sbResponse;
+        }
+    }
+    
+    @GET
+    @Path("/GetTableSQL")
+    public String GetTableSQL(@QueryParam("data") String sbData, @QueryParam("callback") String sbCallback){
+        String sbResponse = "";
+        try{
+            Sistema.Log("/GetTableSQL", sbData, sbCallback);
+            
+            Gson objGson = new Gson();
+            GetTableInfoInADT objGetTableInfoInADT = objGson.fromJson(sbData, GetTableInfoInADT.class);
+            
+            Sistema.fieldRequired(objGetTableInfoInADT.getTable(), "Nombre de la tabla");
+            
+            sbResponse = ServiceExe.GetTableSQL(objGetTableInfoInADT, sbCallback);
+        }
+        catch(AppException e){
+            sbResponse = Sistema.ServiceResponse(sbCallback, e.getParametrosError(), false);
+        }
+        catch(Exception e){
+            sbResponse = Sistema.ServiceResponse(sbCallback, e.getMessage(), false);
+        }
+        finally{
+            Sistema.LogCall("/GetTableSQL", sbData, sbResponse);
             return sbResponse;
         }
     }

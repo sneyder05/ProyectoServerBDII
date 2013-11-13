@@ -60,20 +60,21 @@ public class ServiceExe {
 
     public static String GetTableInfo(GetTableInfoInADT objGetTableInfoInADT, String sbCallback) throws AppException {
         try {
-            ResultSet rsColumns, rsConstraints, rsDetailConstraint, rsFKDetailConstraint;
+            ResultSet rsColumns, rsColumnConstraints, rsConstraints, rsDetailConstraint, rsFKDetailConstraint;
 
             /*
              * Columns
              */
-            JSONObject objJSONTable, objJSONColumns, objJSONColumn;
+            JSONObject objJSONTable, objJSONColumns, objJSONColumn, objJSONColumnConstraints;
 
             objJSONTable = new JSONObject();
             objJSONColumns = new JSONObject();
-            objJSONColumn = new JSONObject();
-
+            
             rsColumns = Query.getTableColumns(objGetTableInfoInADT.getTable());
 
             while (rsColumns.next()) {
+                objJSONColumn = new JSONObject();
+                
                 String sbColumnName = rsColumns.getString("COLUMN_NAME");
                 String sbDataType = rsColumns.getString("DATA_TYPE");
                 int nuDataLength = rsColumns.getInt("DATA_LENGTH");
@@ -81,11 +82,21 @@ public class ServiceExe {
                 int nuDataScale = rsColumns.getInt("DATA_SCALE");
                 boolean blNullable = rsColumns.getString("NULLABLE").equals("Y");
 
+                rsColumnConstraints = Query.getColumnConstraints(objGetTableInfoInADT.getTable(), sbColumnName);
+                objJSONColumnConstraints = new JSONObject();
+                
+                while(rsColumnConstraints.next()){
+                    String sbConstraintType = rsColumnConstraints.getString("CONSTRAINT_TYPE");                    
+                    String sbKey = "is" + sbConstraintType;
+                    objJSONColumnConstraints.put(sbKey, true);
+                }
+                
                 objJSONColumn.put("type", sbDataType);
                 objJSONColumn.put("length", nuDataLength);
                 objJSONColumn.put("precision", nuDataPrecision);
                 objJSONColumn.put("scale", nuDataScale);
                 objJSONColumn.put("nullable", blNullable);
+                objJSONColumn.put("has_constraint", objJSONColumnConstraints);
 
                 objJSONColumns.put(sbColumnName, objJSONColumn);
             }
@@ -164,6 +175,133 @@ public class ServiceExe {
             objJSONTable.put("contraints", objJSONConstraints);
 
             return Sistema.ServiceResponse(sbCallback, objJSONTable, true);
+        } catch (Exception ex) {
+            DBConexion.rollback();
+            throw AppException.getException(ex);
+        }
+    }
+    
+    public static String GetTableSQL(GetTableInfoInADT objGetTableInfoInADT, String sbCallback) throws AppException {
+        try {
+            ResultSet rsTables = Query.getTablesUser(Configuracion.usuarioDB, false);
+            ResultSet rsColumns, rsConstraints, rsDetailConstraint, rsFKDetailConstraint;
+            StringBuilder sbSQL = new StringBuilder();
+
+            while (rsTables.next()) {
+                String sbTabla = rsTables.getString("table_name");
+                
+                /*
+                 * Check table
+                 */
+                if(!sbTabla.toUpperCase().equals(objGetTableInfoInADT.getTable().toUpperCase())){
+                    continue;
+                }
+
+                /*
+                 * GET TABLE COLUMNS
+                 */
+                rsColumns = Query.getTableColumns(sbTabla);
+
+                sbSQL.append("CREATE TABLE \"").append(sbTabla).append("\" (\r\n");
+
+                while (rsColumns.next()) {
+                    String sbColumnName = rsColumns.getString("COLUMN_NAME");
+                    String sbDataType = rsColumns.getString("DATA_TYPE");
+                    int nuDataLength = rsColumns.getInt("DATA_LENGTH");
+                    int nuDataPrecision = rsColumns.getInt("DATA_PRECISION");
+                    int nuDataScale = rsColumns.getInt("DATA_SCALE");
+                    boolean blNullable = rsColumns.getString("NULLABLE").equals("Y");
+
+                    System.out.println(">sbColumnName:" + sbColumnName + ",sbDataType:" + sbDataType + ",nuDataLength:" + nuDataLength + ",nuDataPrecision:" + nuDataPrecision + ",nuDataScale:" + nuDataScale + ",blNullable:" + blNullable);
+
+                    sbSQL.append("\t\"").append(sbColumnName).append("\" ").append(ServiceExe.FormatFieldType(sbDataType));
+
+                    if (sbDataType.equals("?NUMBER") && nuDataPrecision > 0) {
+                        sbSQL.append("(").append(nuDataPrecision).append(nuDataScale > 0 ? "," + nuDataScale : "").append(")");
+                    } else if (Arrays.asList("VARCHAR2", "NVARCHAR2", "CHAR").contains(sbDataType)) {
+                        sbSQL.append("(").append(nuDataLength).append(")");
+                    }
+
+                    sbSQL.append(!blNullable ? " NOT NULL" : "").append(!rsColumns.isLast() ? "," : "").append(!rsColumns.isLast() ? "\r\n" : "");
+                }
+
+                /*
+                 * GET TABLE CONTRAINTS
+                 */
+                rsConstraints = Query.getTableConstraints(sbTabla);
+
+                if (!rsConstraints.isAfterLast() && !rsConstraints.isBeforeFirst()) {
+                    sbSQL.append("\r\n");
+                }
+
+                while (rsConstraints.next()) {
+                    if (rsConstraints.isFirst() && !sbSQL.toString().endsWith(",")) {
+                        sbSQL.append(",\r\n");
+                    }
+
+                    String sbConstraintName = rsConstraints.getString("CONSTRAINT_NAME");
+                    String sbConstraingType = rsConstraints.getString("CONSTRAINT_TYPE");
+                    String sbFKConstraintName = rsConstraints.getString("R_CONSTRAINT_NAME");
+                    String sbDeleteRule = rsConstraints.getString("DELETE_RULE");
+                    String sbSearchCond = rsConstraints.getString("SEARCH_CONDITION");
+
+                    /*
+                     * GET DETAIL CONSTRAINT
+                     */
+                    rsDetailConstraint = Query.getDetailConstraint(sbConstraintName);
+
+                    if (!rsDetailConstraint.isAfterLast() && !rsDetailConstraint.isBeforeFirst()) {
+                        System.out.println("No data for constraint [" + sbConstraintName + "]-> Omiting...");
+                        continue;
+                    }
+
+                    /*
+                     * GET DETAIL FOR FK CONSTRAINT
+                     */
+                    rsFKDetailConstraint = Query.getDetailConstraint(sbFKConstraintName);
+
+                    if (sbConstraingType.equals("R") && !rsFKDetailConstraint.isAfterLast() && !rsFKDetailConstraint.isBeforeFirst()) {
+                        System.out.println("No data for FK constraint [" + sbFKConstraintName + "]-> Omiting...");
+                        continue;
+                    }
+
+                    System.out.println(">sbConstraintName:" + sbConstraintName + ",sbConstraintType:" + sbConstraingType + ",sbDeleteRule:" + sbDeleteRule + ",sbSearchCond:" + sbSearchCond);
+
+                    sbSQL.append("\tCONSTRAINT \"").append(sbConstraintName).append("\" ");
+
+                    String sbKeys = "";
+
+                    if (Arrays.asList("P", "U").contains(sbConstraingType)) {
+                        sbKeys = (sbConstraingType.equals("P") ? "PRIMARY KEY" : "UNIQUE") + "({$KEYS})";
+                    } else if (sbConstraingType.equals("R")) {
+                        sbKeys = "FOREIGN KEY ({$KEYS}) REFERENCES \"{$TABLE}\" ({$FK_KEYS})";
+                    } else if (sbConstraingType.equals("C")) {
+                        sbKeys = "CHECK " + sbSearchCond;
+                    }
+
+                    String sbColumns = "";
+                    while (rsDetailConstraint.next()) {
+                        String sbColumnName = rsDetailConstraint.getString("COLUMN_NAME");
+                        sbColumns += "\"" + sbColumnName + "\"" + (!rsDetailConstraint.isLast() ? "," : "");
+                    }
+
+                    String sbFKColumns = "";
+                    String sbFKTable = "";
+                    while (rsFKDetailConstraint.next()) {
+                        String sbColumnName = rsFKDetailConstraint.getString("COLUMN_NAME");
+                        sbFKTable = rsFKDetailConstraint.getString("TABLE_NAME");
+                        sbFKColumns += "\"" + sbColumnName + "\"" + (!rsFKDetailConstraint.isLast() ? "," : "");
+                    }
+
+                    sbSQL.append(sbKeys.replaceAll("\\{\\$KEYS\\}", sbColumns).replaceAll("\\{\\$FK_KEYS\\}", sbFKColumns).replaceAll("\\{\\$TABLE\\}", sbFKTable));
+
+                    sbSQL.append(sbDeleteRule != null && sbDeleteRule.equals("CASCADE") ? " ON DELETE CASCADE" : "").append(!rsConstraints.isLast() ? "," : "").append(!rsConstraints.isLast() ? "\r\n" : "");
+                }
+
+                sbSQL.append("\r\n);\r\n");
+            }
+            
+            return Sistema.ServiceResponse(sbCallback, sbSQL.toString(), true);
         } catch (Exception ex) {
             DBConexion.rollback();
             throw AppException.getException(ex);

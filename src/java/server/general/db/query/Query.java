@@ -78,4 +78,33 @@ public class Query {
             throw AppException.getException(e);
         }
     }
+    
+    public static ResultSet getColumnConstraints(String sbTable, String sbColumn) throws AppException {
+        try{
+            int nuIdx = 1;
+            String sbSQL = "SELECT " +
+                                "AC.CONSTRAINT_TYPE " +
+                            "FROM " +
+                                "ALL_CONSTRAINTS AC," +
+                                "ALL_CONS_COLUMNS ACC " +
+                            "WHERE " +
+                                "AC.CONSTRAINT_NAME = ACC.CONSTRAINT_NAME " +
+                                "AND ACC.TABLE_NAME = ? " +
+                                "AND ACC.COLUMN_NAME = ? " +
+                                "AND AC.CONSTRAINT_NAME NOT LIKE 'SYS%' " +
+                            "GROUP BY " +
+                                "AC.CONSTRAINT_TYPE";
+            PreparedStatement stm = DBConexion.getPreparedStatement(sbSQL, ResultSet.TYPE_SCROLL_SENSITIVE, ResultSet.CONCUR_UPDATABLE);
+
+            stm.setString(nuIdx++, sbTable);
+            stm.setString(nuIdx++, sbColumn);
+            
+            System.out.println("SQL::" + stm.toString());
+
+            return stm.executeQuery();
+        }
+        catch(Exception e){
+            throw AppException.getException(e);
+        }
+    }
 }
