@@ -422,9 +422,12 @@ public class ServiceExe {
             }
 
             String sbURLDownload = Configuracion.pathDownloadFiles + objGenerateBackupInADT.getFileName();
-            PrintWriter writer = new PrintWriter(Configuracion.pathFiles + objGenerateBackupInADT.getFileName(), "UTF-8");
+            String sbURIFile = Configuracion.pathFiles + objGenerateBackupInADT.getFileName();
+            PrintWriter writer = new PrintWriter(sbURIFile, "UTF-8");
             writer.println(sbSQL);
             writer.close();
+            
+            Sistema.compressFile(sbURIFile, false, objGenerateBackupInADT.getFileName(), false, Configuracion.pathFiles, true);
 
             return Sistema.ServiceResponse(sbCallback, sbURLDownload, true);
         } catch (Exception ex) {

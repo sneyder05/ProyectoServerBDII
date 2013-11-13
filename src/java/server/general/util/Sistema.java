@@ -1,8 +1,10 @@
 package server.general.util;
 
+import java.io.File;
 import java.net.URL;
 import java.sql.Timestamp;
 import java.util.Calendar;
+import java.util.Vector;
 import org.codehaus.jettison.json.JSONObject;
 import server.general.error.AppException;
 
@@ -78,6 +80,66 @@ public class Sistema {
             objCalendario.set(Calendar.MILLISECOND, 0);
             dtFechaHoraActual = new Timestamp(objCalendario.getTime().getTime());
             return dtFechaHoraActual;
+        } catch (Exception e) {
+            throw AppException.getException(e);
+        }
+    }
+    
+    public static void compressFile(File file, boolean blSameName, String sbFileDestName, boolean blFileDir, String sbDest, boolean blDeleteFile) throws AppException {
+        ZIP zip = new ZIP();
+        try {
+            Vector files = new Vector(0);
+            files.add(file);
+
+            String sbExtension = Sistema.getFileExtension(file);
+
+            String absolutePath = file.getAbsolutePath();
+            String fileNameOutput = (blSameName ? file.getName().substring(0, (file.getName().length() - (sbExtension.length() + 1))) : sbFileDestName) + ".zip";
+            String pathFileContenedor = (blFileDir ? absolutePath.substring(0, (absolutePath.length() - file.getName().length())) : sbDest) + fileNameOutput;
+
+            System.out.println(">>absolutePath:"+absolutePath);
+            System.out.println(">>fileNameOutput:"+fileNameOutput);
+            System.out.println(">>pathFileContenedor:"+pathFileContenedor);
+            
+            System.out.println("Comprimiendo archivo {" + pathFileContenedor + "}");
+            zip.Compress(files, pathFileContenedor);
+
+            if (blDeleteFile) {
+                file.delete();
+            }
+        } catch (Exception e) {
+            throw AppException.getException(e);
+        }
+    }
+
+    public static void compressFile(String path, boolean blSameName, String sbFileDestName, boolean blFileDir, String sbDest, boolean blDeleteFile) throws AppException {
+        try {
+            Sistema.compressFile(new File(path), blSameName, sbFileDestName, blFileDir, sbDest, blDeleteFile);
+        } catch (Exception e) {
+            throw AppException.getException(e);
+        }
+    }
+    
+    public static String getFileExtension(File file) throws AppException {
+        try {
+            String sbExtension = "";
+
+            int i = file.getAbsolutePath().lastIndexOf('.');
+            int p = Math.max(file.getAbsolutePath().lastIndexOf('/'), file.getAbsolutePath().lastIndexOf('\\'));
+
+            if (i > p) {
+                sbExtension = file.getAbsolutePath().substring(i + 1);
+            }
+
+            return sbExtension;
+        } catch (Exception e) {
+            throw AppException.getException(e);
+        }
+    }
+
+    public static String getFileExtension(String path) throws AppException {
+        try {
+            return Sistema.getFileExtension(new File(path));
         } catch (Exception e) {
             throw AppException.getException(e);
         }
