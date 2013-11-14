@@ -421,13 +421,16 @@ public class ServiceExe {
                 sbSQL.append("\r\n);\r\n");
             }
 
-            String sbURLDownload = Configuracion.pathDownloadFiles + objGenerateBackupInADT.getFileName();
             String sbURIFile = Configuracion.pathFiles + objGenerateBackupInADT.getFileName();
+            String sbFileZipName = objGenerateBackupInADT.getFileName().contains(".") ? objGenerateBackupInADT.getFileName().substring(0, objGenerateBackupInADT.getFileName().length() - 4) : objGenerateBackupInADT.getFileName();
+            String sbURLDownload = Configuracion.pathDownloadFiles + sbFileZipName + ".zip";
             PrintWriter writer = new PrintWriter(sbURIFile, "UTF-8");
             writer.println(sbSQL);
             writer.close();
             
-            Sistema.compressFile(sbURIFile, false, objGenerateBackupInADT.getFileName(), false, Configuracion.pathFiles, true);
+            Sistema.compressFile(sbURIFile, false, sbFileZipName, false, Configuracion.pathFiles, true);
+            
+            Thread.sleep(1000);
 
             return Sistema.ServiceResponse(sbCallback, sbURLDownload, true);
         } catch (Exception ex) {
