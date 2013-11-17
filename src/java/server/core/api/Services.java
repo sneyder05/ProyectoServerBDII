@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.QueryParam;
+import server.core.ADT.DeleteFieldInADT;
 import server.core.ADT.GenerateBackupInADT;
 import server.core.ADT.GetTableInfoInADT;
 import server.core.ADT.LoginInADT;
@@ -132,6 +133,33 @@ public class Services {
         }
         finally{
             Sistema.LogCall("/GetTableSQL", sbData, sbResponse);
+            return sbResponse;
+        }
+    }
+    
+    @GET
+    @Path("/DeleteField")
+    public String DeleteField(@QueryParam("data") String sbData, @QueryParam("callback") String sbCallback){
+        String sbResponse = "";
+        try{
+            Sistema.Log("/DeleteField", sbData, sbCallback);
+            
+            Gson objGson = new Gson();
+            DeleteFieldInADT objDeleteFieldInADT = objGson.fromJson(sbData, DeleteFieldInADT.class);
+            
+            Sistema.fieldRequired(objDeleteFieldInADT.getTable(), "Nombre de la tabla");
+            Sistema.fieldRequired(objDeleteFieldInADT.getField(), "Nombre del campo");
+            
+            sbResponse = ServiceExe.DeleteField(objDeleteFieldInADT, sbCallback);
+        }
+        catch(AppException e){
+            sbResponse = Sistema.ServiceResponse(sbCallback, e.getParametrosError(), false);
+        }
+        catch(Exception e){
+            sbResponse = Sistema.ServiceResponse(sbCallback, e.getMessage(), false);
+        }
+        finally{
+            Sistema.LogCall("/DeleteField", sbData, sbResponse);
             return sbResponse;
         }
     }

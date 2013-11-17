@@ -19,7 +19,7 @@ public class Query {
 
             stm.setString(nuIdx++, sbUser);
             
-            System.out.println("SQL::" + stm.toString());
+            System.out.println("SQL::" + sbSQL + " >> " + stm.toString());
 
             return stm.executeQuery();
         }
@@ -36,7 +36,7 @@ public class Query {
 
             stm.setString(nuIdx++, sbTable);
             
-            System.out.println("SQL::" + stm.toString());
+            System.out.println("SQL::" + sbSQL + " >> " + stm.toString());
 
             return stm.executeQuery();
         }
@@ -53,7 +53,7 @@ public class Query {
 
             stm.setString(nuIdx++, sbTable);
             
-            System.out.println("SQL::" + stm.toString());
+            System.out.println("SQL::" + sbSQL + " >> " + stm.toString());
 
             return stm.executeQuery();
         }
@@ -70,7 +70,7 @@ public class Query {
 
             stm.setString(nuIdx++, sbConstraint);
             
-            System.out.println("SQL::" + stm.toString());
+            System.out.println("SQL::" + sbSQL + " >> " + stm.toString());
 
             return stm.executeQuery();
         }
@@ -99,7 +99,41 @@ public class Query {
             stm.setString(nuIdx++, sbTable);
             stm.setString(nuIdx++, sbColumn);
             
-            System.out.println("SQL::" + stm.toString());
+            System.out.println("SQL::" + sbSQL + " >> " + stm.toString());
+
+            return stm.executeQuery();
+        }
+        catch(Exception e){
+            throw AppException.getException(e);
+        }
+    }
+    
+    public static ResultSet getTableTriggers(String sbTable) throws AppException {
+        try{
+            int nuIdx = 1;
+            String sbSQL = "SELECT * FROM ALL_TRIGGERS WHERE TABLE_NAME = ?";
+            PreparedStatement stm = DBConexion.getPreparedStatement(sbSQL, ResultSet.TYPE_SCROLL_SENSITIVE, ResultSet.CONCUR_UPDATABLE);
+
+            stm.setString(nuIdx++, sbTable);
+            
+            System.out.println("SQL::" + sbSQL + " >> " + stm.toString());
+
+            return stm.executeQuery();
+        }
+        catch(Exception e){
+            throw AppException.getException(e);
+        }
+    }
+    
+    public static ResultSet getSequences(String sbUser) throws AppException {
+        try{
+            int nuIdx = 1;
+            String sbSQL = "SELECT * FROM ALL_SEQUENCES WHERE SEQUENCE_OWNER = ?";
+            PreparedStatement stm = DBConexion.getPreparedStatement(sbSQL, ResultSet.TYPE_SCROLL_SENSITIVE, ResultSet.CONCUR_UPDATABLE);
+            
+            stm.setString(nuIdx++, sbUser);
+            
+            System.out.println("SQL::" + sbSQL + " >> " + stm.toString());
 
             return stm.executeQuery();
         }

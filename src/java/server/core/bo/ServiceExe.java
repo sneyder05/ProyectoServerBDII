@@ -6,10 +6,12 @@ import java.sql.ResultSet;
 import java.util.Arrays;
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONObject;
+import server.core.ADT.DeleteFieldInADT;
 import server.core.ADT.GenerateBackupInADT;
 import server.core.ADT.GetTableInfoInADT;
 import server.core.ADT.LoginInADT;
 import server.general.db.conexion.DBConexion;
+import server.general.db.delete.Delete;
 import server.general.db.query.Query;
 import server.general.error.AppException;
 import server.general.util.Configuracion;
@@ -60,15 +62,16 @@ public class ServiceExe {
 
     public static String GetTableInfo(GetTableInfoInADT objGetTableInfoInADT, String sbCallback) throws AppException {
         try {
-            ResultSet rsColumns, rsColumnConstraints, rsConstraints, rsDetailConstraint, rsFKDetailConstraint;
+            ResultSet rsColumns, rsColumnConstraints, rsConstraints, rsDetailConstraint, rsFKDetailConstraint, rsTriggers;
 
             /*
              * Columns
              */
-            JSONObject objJSONTable, objJSONColumns, objJSONColumn, objJSONColumnConstraints;
+            JSONObject objJSONTable, objJSONColumns, objJSONColumn, objJSONColumnConstraints, objJSONTriggers, objJSONTrigger;
 
             objJSONTable = new JSONObject();
             objJSONColumns = new JSONObject();
+            objJSONTriggers = new JSONObject();
             
             rsColumns = Query.getTableColumns(objGetTableInfoInADT.getTable());
 
@@ -173,6 +176,24 @@ public class ServiceExe {
             }
 
             objJSONTable.put("contraints", objJSONConstraints);
+            
+            /*
+             * Triggers
+             */
+            rsTriggers = Query.getTableTriggers(objGetTableInfoInADT.getTable());
+            
+            while(rsTriggers.next()){
+                objJSONTrigger = new JSONObject();
+                
+                String sbTriggerName = rsTriggers.getString("TRIGGER_NAME");
+                String sbTriggerType = rsTriggers.getString("TRIGGER_TYPE");
+                
+                objJSONTrigger.put("type", sbTriggerType);
+                
+                objJSONTriggers.put(sbTriggerName, objJSONTrigger);
+            }
+            
+            objJSONTable.put("triggers", objJSONTriggers);
 
             return Sistema.ServiceResponse(sbCallback, objJSONTable, true);
         } catch (Exception ex) {
@@ -184,7 +205,7 @@ public class ServiceExe {
     public static String GetTableSQL(GetTableInfoInADT objGetTableInfoInADT, String sbCallback) throws AppException {
         try {
             ResultSet rsTables = Query.getTablesUser(Configuracion.usuarioDB, false);
-            ResultSet rsColumns, rsConstraints, rsDetailConstraint, rsFKDetailConstraint;
+            ResultSet rsColumns, rsConstraints, rsDetailConstraint, rsFKDetailConstraint, rsTriggers;
             StringBuilder sbSQL = new StringBuilder();
 
             while (rsTables.next()) {
@@ -299,6 +320,27 @@ public class ServiceExe {
                 }
 
                 sbSQL.append("\r\n);\r\n");
+                
+                /*
+                 * Triggers
+                 */
+                rsTriggers = Query.getTableTriggers(objGetTableInfoInADT.getTable());
+
+                while(rsTriggers.next()){
+                    if(rsTriggers.isFirst()){
+                        sbSQL.append("\r\n");
+                    }
+                    
+                    String sbTriggerDesc = rsTriggers.getString("DESCRIPTION");
+                    String sbTriggerWhenClause = rsTriggers.getString("WHEN_CLAUSE");
+                    String sbTriggerBody = rsTriggers.getString("TRIGGER_BODY");
+                    
+                    sbSQL.append("CREATE OR REPLACE TRIGGER ")
+                        .append(sbTriggerDesc).append(sbTriggerWhenClause == null || sbTriggerWhenClause.equals("") ? "" : "(" + sbTriggerWhenClause + ")")
+                        .append(sbTriggerBody);
+                    
+                    sbSQL.append("\r\n").append(!rsTriggers.isLast() ? "\r\n" : "");
+                }
             }
             
             return Sistema.ServiceResponse(sbCallback, sbSQL.toString(), true);
@@ -311,7 +353,7 @@ public class ServiceExe {
     public static String GenerateBackup(GenerateBackupInADT objGenerateBackupInADT, String sbCallback) throws AppException {
         try {
             ResultSet rsTables = Query.getTablesUser(Configuracion.usuarioDB, false);
-            ResultSet rsColumns, rsConstraints, rsDetailConstraint, rsFKDetailConstraint;
+            ResultSet rsColumns, rsConstraints, rsDetailConstraint, rsFKDetailConstraint, rsTriggers, rsSequences;
             StringBuilder sbSQL = new StringBuilder();
 
             while (rsTables.next()) {
@@ -419,6 +461,58 @@ public class ServiceExe {
                 }
 
                 sbSQL.append("\r\n);\r\n");
+                
+                /*
+                 * Triggers
+                 */
+                rsTriggers = Query.getTableTriggers(sbTabla);
+
+                while(rsTriggers.next()){
+                    if(rsTriggers.isFirst()){
+                        sbSQL.append("\r\n");
+                    }
+                    
+                    String sbTriggerDesc = rsTriggers.getString("DESCRIPTION");
+                    String sbTriggerWhenClause = rsTriggers.getString("WHEN_CLAUSE");
+                    String sbTriggerBody = rsTriggers.getString("TRIGGER_BODY");
+                    
+                    sbSQL.append("CREATE OR REPLACE TRIGGER ")
+                        .append(sbTriggerDesc).append(sbTriggerWhenClause == null || sbTriggerWhenClause.equals("") ? "" : "(" + sbTriggerWhenClause + ")")
+                        .append(sbTriggerBody);
+                    
+                    sbSQL.append("\r\n").append(!rsTriggers.isLast() ? "\r\n" : "");
+                }
+            }
+            
+            /*
+             * Sequences
+             */
+            rsSequences = Query.getSequences(Configuracion.usuarioDB);
+
+            while(rsSequences.next()){
+                if(rsSequences.isFirst()){
+                    sbSQL.append("\r\n");
+                }
+
+                String sbSeqName = rsSequences.getString("SEQUENCE_NAME");
+                int nuSeqMinVal = rsSequences.getInt("MIN_VALUE");
+                String sbSeqMaxVal = rsSequences.getString("MAX_VALUE");
+                long lgSeqIncBy = rsSequences.getLong("INCREMENT_BY");
+                boolean blSeqCycleFlag = rsSequences.getString("CYCLE_FLAG").equals("Y");
+                boolean blSeqOrderFlag = rsSequences.getString("ORDER_FLAG").equals("Y");
+                long lgSeqCache = rsSequences.getLong("CACHE_SIZE");
+                
+                System.out.println("SEQUENCE_NAME:" + sbSeqName);
+                
+                sbSQL.append("CREATE SEQUENCE \"").append(sbSeqName).append("\"\r\n")
+                    .append("MINVALUE ").append(nuSeqMinVal).append(" MAXVALUE ").append(sbSeqMaxVal).append("\r\n")
+                    .append("START WITH ").append(nuSeqMinVal).append("\r\n")
+                    .append("INCREMENT BY ").append(lgSeqIncBy).append("\r\n")
+                    .append(blSeqCycleFlag ? "CYCLE" : "NOCYCLE").append(" \r\n")
+                    .append(lgSeqCache <= 0 ? "NOCACHE" : "CACHE " + lgSeqCache).append("\r\n")
+                    .append(blSeqOrderFlag ? "ORDER" : "NOORDER").append(";");
+
+                sbSQL.append("\r\n").append(!rsSequences.isLast() ? "\r\n" : "");
             }
 
             String sbURIFile = Configuracion.pathFiles + objGenerateBackupInADT.getFileName();
@@ -430,9 +524,22 @@ public class ServiceExe {
             
             Sistema.compressFile(sbURIFile, false, sbFileZipName, false, Configuracion.pathFiles, true);
             
-            Thread.sleep(1000);
+            Thread.sleep(3000);
 
             return Sistema.ServiceResponse(sbCallback, sbURLDownload, true);
+        } catch (Exception ex) {
+            throw AppException.getException(ex);
+        }
+    }
+    
+    public static String DeleteField(DeleteFieldInADT objDeleteFieldInADT, String sbCallback) throws AppException {
+        try {
+            int nuDelete = Delete.DeleteField(objDeleteFieldInADT.getTable(), objDeleteFieldInADT.getField());
+            if(nuDelete < 0){
+                throw AppException.getException(10, "Error al eliminar el campo " + objDeleteFieldInADT.getField());
+            }
+            
+            return Sistema.ServiceResponse(sbCallback, "", true);
         } catch (Exception ex) {
             throw AppException.getException(ex);
         }
